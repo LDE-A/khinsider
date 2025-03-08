@@ -277,9 +277,10 @@ class Soundtrack(object):
     * images: A list of File objects representing the images in the soundtrack.
     """
 
-    def __init__(self, soundtrackId):
+    def __init__(self, soundtrackId,prefer_original_title=True):
         self.id = soundtrackId
         self.url = urljoin(BASE_URL, 'game-soundtracks/album/' + self.id)
+        self._prefer_original_title = prefer_original_title
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self.id)
@@ -299,7 +300,14 @@ class Soundtrack(object):
 
     @lazyProperty
     def name(self):
-        return next(self._contentSoup.find('h2').stripped_strings)
+        if not self._prefer_original_title:
+            return next(self._contentSoup.find('h2').stripped_strings)
+        else:
+            alternatives = self._contentSoup.find("p",class_="albuminfoAlternativeTitles")
+            if alternatives:
+                return alternatives.get_text(separator="\n").split("\n")[0]
+            else:
+                return next(self._contentSoup.find('h2').stripped_strings)
 
     @lazyProperty
     def availableFormats(self):
@@ -443,7 +451,6 @@ class File(object):
         response = requests.get(self.url, timeout=10)
         with open(path, 'wb') as outFile:
             outFile.write(response.content)
-
 
 
 
