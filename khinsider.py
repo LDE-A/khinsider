@@ -29,7 +29,7 @@ class Silence(object):
         self._stderr = sys.stderr
         sys.stdout = open(os.devnull, 'w')
         sys.stderr = open(os.devnull, 'w')
-    
+
     def __exit__(self, *_):
         sys.stdout = self._stdout
         sys.stderr = self._stderr
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         for module in modules:
             if verbose:
                 print("Installing {}...".format(module[0]))
-            
+
             try:
                 install(module[2])
             except OSError as e:
@@ -183,12 +183,12 @@ def toSoup(r):
 def getAppropriateFile(song, formatOrder):
     if formatOrder is None:
         return song.files[0]
-    
+
     for extension in formatOrder:
         for file in song.files:
             if os.path.splitext(file.filename)[1][1:].lower() == extension:
                 return file
-    
+
     return song.files[0]
 
 
@@ -211,10 +211,10 @@ def friendlyDownloadFile(file, path, index, total, verbose=False):
     byTheWay = ""
     if filename != file.filename:
         byTheWay = " (replaced characters not in the filesystem's \"{}\" encoding)".format(encoding)
-    
+
     filename = to_valid_filename(filename)
     path = os.path.join(path, filename)
-    
+
     if not os.path.exists(path):
         if verbose:
             unicodePrint("Downloading {}: {}{}...".format(numberStr, filename, byTheWay))
@@ -267,7 +267,7 @@ class NonexistentFormatsError(SoundtrackError, ValueError):
 
 class Soundtrack(object):
     """A KHInsider soundtrack. Initialize with a soundtrack ID.
-    
+
     Properties:
     * id:     The soundtrack's unique ID, used at the end of its URL.
     * url:    The full URL of the soundtrack.
@@ -280,7 +280,7 @@ class Soundtrack(object):
     def __init__(self, soundtrackId):
         self.id = soundtrackId
         self.url = urljoin(BASE_URL, 'game-soundtracks/album/' + self.id)
-    
+
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self.id)
 
@@ -317,7 +317,7 @@ class Soundtrack(object):
         urls = [a['href'] for a in anchors]
         songs = [Song(urljoin(self.url, url)) for url in urls]
         return songs
-    
+
     @lazyProperty
     def images(self):
         table = self._contentSoup.find('table')
@@ -333,14 +333,14 @@ class Soundtrack(object):
 
     def download(self, path='', makeDirs=True, formatOrder=None, verbose=False):
         """Download the soundtrack to the directory specified by `path`!
-        
+
         Create any directories that are missing if `makeDirs` is set to True.
 
         Set `formatOrder` to a list of file extensions to specify the order
         in which to prefer file formats. If set to ['flac', 'ogg', 'mp3'], for
         example, FLAC files will be downloaded if available - if not, Ogg
         files, and if those aren't available, MP3 files.
-        
+
         Print progress along the way if `verbose` is set to True.
 
         Return True if all files were downloaded successfully, False if not.
@@ -370,26 +370,26 @@ class Soundtrack(object):
         for fileNumber, file in enumerate(files, 1):
             if not friendlyDownloadFile(file, path, fileNumber, totalFiles, verbose):
                 success = False
-        
+
         return success
 
 
 class Song(object):
     """A song on KHInsider.
-    
+
     Properties:
     * url:   The full URL of the song page.
     * name:  The name of the song.
     * files: A list of the song's files - there may be several if the song
              is available in more than one format.
     """
-    
+
     def __init__(self, url):
         self.url = url
-    
+
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self.url)
-    
+
     @lazyProperty
     def _soup(self):
         r = requests.get(self.url, timeout=10)
@@ -411,7 +411,7 @@ class Song(object):
 
 class File(object):
     """A file belonging to a soundtrack on KHInsider.
-    
+
     Properties:
     * url:      The full URL of the file.
     * filename: The file's... filename. You got it.
@@ -437,7 +437,7 @@ class File(object):
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self.url)
-    
+
     def download(self, path):
         """Download the file to `path`."""
         response = requests.get(self.url, timeout=10)
@@ -445,13 +445,16 @@ class File(object):
             outFile.write(response.content)
 
 
-def download(soundtrackId, path='', makeDirs=True, formatOrder=None, verbose=False):
+
+
+def download(soundtrackId, dir_path='', makeDirs=True, formatOrder=None, verbose=False):
     """Download the soundtrack with the ID `soundtrackId`.
     See Soundtrack.download for more information.
     """
     soundtrack = Soundtrack(soundtrackId)
     soundtrack.name # To conistently always load the content in advance.
-    path = to_valid_filename(soundtrack.name) if path is None else path
+    #path = khinsider.to_valid_filename(soundtrack.name) if path is None else path
+    path = os.path.join(dir_path, to_valid_filename(soundtrack.name))
     if verbose:
         unicodePrint("Downloading to \"{}\".".format(path))
     return soundtrack.download(path, makeDirs, formatOrder, verbose)
@@ -548,7 +551,7 @@ if __name__ == '__main__':
                                     epilog="Hope you enjoy the script!",
                                     formatter_class=ProperHelpFormatter,
                                     add_help=False)
-        
+
         try: # Even more tiny details!
             parser._positionals.title = "Positional arguments"
             parser._optionals.title = "Optional arguments"
@@ -564,7 +567,7 @@ if __name__ == '__main__':
                             help="The directory to download the soundtrack to.\n"
                             "Defaults to creating a new directory with the soundtrack ID as its name.")
         parser.add_argument('trailingArguments', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
-        
+
         parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                             help="Show this help and exit.")
         parser.add_argument('-f', '--format', default=None, metavar="...",
@@ -580,7 +583,7 @@ if __name__ == '__main__':
             soundtrack = arguments.soundtrack.decode(sys.getfilesystemencoding())
         except AttributeError: # Python 3's argv is in Unicode
             soundtrack = arguments.soundtrack
-        
+
         urlRe = re.compile(r"^https?://" + urlsplit(BASE_URL).netloc +
                            r"/game-soundtracks/album/(?P<soundtrack>[^/]+)$",
                            re.IGNORECASE)
@@ -642,13 +645,13 @@ if __name__ == '__main__':
                     elif searchResults is None:
                         print("A search for \"{}\" could not be performed either. "
                               "It may be too short.".format(searchTerm), file=sys.stderr)
-                    
+
                     return 1
                 except NonexistentFormatsError as e:
                     s = ("Format{} not available. "
                          "The soundtrack \"{}\" is only available in the ").format(
                         "" if len(formatOrder) == 1 else "s", soundtrack)
-                    
+
                     formats = e.soundtrack.availableFormats
                     if len(formats) == 1:
                         s += "\"{}\" format.".format(formats[0])
@@ -657,9 +660,9 @@ if __name__ == '__main__':
                             ", ".join('"{}"'.format(extension) for extension in formats[:-1]),
                             "," if len(formats) > 2 else "",
                             formats[-1])
-                    
+
                     print(s, file=sys.stderr)
-                    
+
                     return 1
                 except KeyboardInterrupt:
                     print("Stopped download.", file=sys.stderr)
@@ -675,7 +678,7 @@ if __name__ == '__main__':
             print("Attach the following error message:", file=sys.stderr)
             print(file=sys.stderr)
             raise
-    
+
         return 0
-    
+
     sys.exit(doIt())
